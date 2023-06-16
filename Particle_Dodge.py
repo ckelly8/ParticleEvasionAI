@@ -21,13 +21,13 @@ COLLISION_POINT_COLOR = (0,0,255)
 # max speed of points in simulation
 MAX_SPEED = 5
 # number of neural networks in a population
-POPULATION_SIZE = 5
+POPULATION_SIZE = 6
 
-# path to current best network weights
-BEST_NETWORK = 'model_weights.h5'
 # How many points the NN_Point can 'see' at a time
 # based on how close those points are
 VISUAL_FIELD = 4
+
+WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodge_AI\\Weights"
 
 # Network_Pool Class
 # This object will initialize a random population, track the best performers, and spawn
@@ -35,9 +35,19 @@ VISUAL_FIELD = 4
 class Network_Pool:
     def __init__(self):
         self.population = []
-
+        self.rattle_intensity = 0.01
+        self.previous_best_fitness = 0
+        self.current_best_fitness = 0
+        self.generate_new_population()
+        self.load_previous_best_weights()
+        
+    # generate new population with random point initialization
+    # if applicable, weights are loaded in later
+    def generate_new_population(self):
         for _ in range(POPULATION_SIZE):
-            self.population.append(NN_Point())
+            nn_point = NN_Point()
+            nn_point.brain.build((5,5))
+            self.population.append(nn_point)
 
     # fix for resetting population as bug occurs when carrying initial population 
     # of NN_Point objects over to next population cycle
@@ -52,12 +62,33 @@ class Network_Pool:
             nn_point.brain = BrainBasket[i]
             self.population.append(nn_point)
 
-
+    # saves the best performing neural network of the population
+    # as its fitness score to be searchable later
     def save_best(self):
-        self.population[0].brain.save_weights('model_weights.h5')
+        print(self.population[0].fitness)
+        self.population[0].brain.save_weights(f"weights\w_{self.population[0].fitness}.h5")
 
-    def load_network(self):
-        self.population[0].brain.load_weights('model_weights.h5')
+    # returns the location of the best previous performing network
+    def find_best_previous_weights(self):
+        weights = os.listdir(WEIGHTS_PATH)
+        if len(weights) == 0:
+            return False
+        else:
+            weights = sorted(weights, key=lambda x: int(x.split('_')[1].split('.')[0]))
+
+        print(os.path.join(WEIGHTS_PATH,weights[len(weights)-1]))
+        return os.path.join(WEIGHTS_PATH,weights[len(weights)-1])
+
+    # loads the previous best weights recorded into the population
+    def load_previous_best_weights(self):
+        previous_best_weights = self.find_best_previous_weights()
+        if previous_best_weights != False:
+            for i in range(len(self.population)):
+                self.population[i].brain.load_weights(previous_best_weights)
+        else:
+            print('No prior weights detected. Creating random population.')
+            
+
 
     def order_by_performance(self):
         sorted_networks = sorted(self.population, key=lambda network: network.fitness)
@@ -98,7 +129,7 @@ class Network_Pool:
 
             # Perform mutation on the offspring network's weights
             weights = offspring.get_weights()
-            mutated_weights = [weight + np.random.uniform(-0.1, 0.1, size=weight.shape) for weight in weights]
+            mutated_weights = [weight + np.random.uniform(-self.rattle_intensity, self.rattle_intensity, size=weight.shape) for weight in weights]
 
             # Assign the mutated weights back to the offspring network
             offspring.set_weights(mutated_weights)
@@ -116,7 +147,6 @@ class Network_Pool:
 class Collision_Point:
     def __init__(self):
         initialize_start = random.uniform(0,1)
-        print(initialize_start)
 
         #top right corner
         if initialize_start <= 0.25:
@@ -221,7 +251,6 @@ class NN_Point:
         self.vision.append(position)
         self.vision = np.array(self.vision)
         self.vision = tf.convert_to_tensor(self.vision)
-        print(self.vision)
 
     def reset_position(self):
         self.x = WIDTH/2
@@ -235,14 +264,11 @@ class NN_Point:
 # load previous best preformer
 # print stats from maintained log 
 def start_sequence():
-    if os.path.isfile(BEST_NETWORK):
-        pass
+    pass
 
 
 
 def main():
-
-    start_sequence()
 
     pool = Network_Pool()
 
@@ -251,7 +277,8 @@ def main():
     while True:
     # iterate through population and run simulation
         for i in range(len(pool.population)):
-            print('iteration start')
+            print(f'iteration {i} start')
+
             pygame.init()
             screen = pygame.display.set_mode((WIDTH, HEIGHT))
             clock = pygame.time.Clock()
@@ -276,6 +303,7 @@ def main():
                 # Calculate elapsed time
                 elapsed_time = pygame.time.get_ticks() - start_time
                 #seconds = elapsed_time // 1000
+                nn_point.fitness = elapsed_time
 
                 # update and draw blue points
                 for point in collision_points:
@@ -291,7 +319,6 @@ def main():
                     if distance < 2 * RADIUS:
                         #print(f"Blue point collided with red point at ({point.x}, {point.y})")
                         # track the neural networks performance
-                        nn_point.fitness = elapsed_time
                         nn_point.alive = False
 
                 # sort the vision matrix to closest first
@@ -310,12 +337,12 @@ def main():
                 pygame.display.flip()
                 clock.tick(60)
         
-            print('iteration end')
-            time.sleep(1)
+            print(f'iteration {i} end')
+            time.sleep(0.5)
             pygame.quit()
 
         print('pop end')
-        time.sleep(1)
+        time.sleep(0.5)
 
         pool.order_by_performance()
         pool.save_best()

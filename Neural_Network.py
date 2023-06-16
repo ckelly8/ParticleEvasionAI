@@ -6,9 +6,9 @@ class NeuralNetwork(tf.keras.Model):
         #input layer defines NN points 'vision'
         self.input_layer = tf.keras.layers.Dense(25, activation='relu',input_shape=(5,))
         #simple 2 layer wide neural network
-        self.hidden_layer1 = tf.keras.layers.Dense(50,activation='relu')
-        self.hidden_layer2 = tf.keras.layers.Dense(25,activation='relu')
-        self.hidden_layer3 = tf.keras.layers.Dense(5,activation='relu')
+        self.hidden_layer1 = tf.keras.layers.Dense(35,activation='relu')
+        self.hidden_layer2 = tf.keras.layers.Dense(15,activation='relu')
+        self.hidden_layer3 = tf.keras.layers.Dense(10,activation='relu')
         #output is change in velocity for x and y dimensions
         self.output_layer = tf.keras.layers.Dense(2, activation='tanh')
     
