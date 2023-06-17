@@ -1,0 +1,2 @@
+rattle_intensity,0.15
+generation_number,25
