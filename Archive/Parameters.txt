@@ -1,2 +1,2 @@
 rattle_intensity,0.03
-generation_number,42
+generation_number,103

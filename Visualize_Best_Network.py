@@ -126,6 +126,7 @@ class NN_Point:
             weights = sorted(weights, key=lambda x: int(x.split('_')[1].split('.')[0]), reverse=True)
             self.brain.load_weights(os.path.join(WEIGHTS_PATH,weights[len(weights)-1]))
 
+
     def update(self):
 
         move = self.brain(self.vision)
@@ -156,6 +157,7 @@ class NN_Point:
         distance_to_left = self.x
         distance_to_bottom = self.y
         # [self.x,self.y,distance_to_boundary,distance_from_center]
+        return [distance_from_center,distance_to_top,distance_to_right,distance_to_left,distance_to_bottom]
         return [norm_distance_from_center(distance_from_center),
                 norm_distance(distance_to_top),
                 norm_distance(distance_to_right),
@@ -210,12 +212,16 @@ def main():
                 bisect.insort(vision,[distance,point], key = lambda x: x[0])
                 point.update()
                 point.draw(screen)
+
                 # Creating vision matrix list that contains distance, position, and velocity information
+                nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+                """
                 nn_point.vision.append([norm_distance(distance),
                                         norm_position(point.x),
                                         norm_position(point.y),
                                         norm_velocity(point.vx),
                                         norm_velocity(point.vy)])
+                """
                 if distance < 2 * RADIUS:
                     #print(f"Blue point collided with red point at ({point.x}, {point.y})")
                     nn_point.alive = False

@@ -6,7 +6,6 @@ import Neural_Network
 import os
 import bisect
 import math
-
 import threading
 
 # dimensions of the window
@@ -22,7 +21,7 @@ COLLISION_POINT_COLOR = (0,0,255)
 # max speed of points in simulation
 MAX_SPEED = 5
 # number of neural networks in a population
-POPULATION_SIZE = 30
+POPULATION_SIZE = 100
 
 # How many points the NN_Point can 'see' at a time
 # based on how close those points are
@@ -33,7 +32,8 @@ WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodg
 # Normalization functions
 # of the form:  (x - min) / (max - min)
 def norm_position(input_position):
-    normed = (input_position - 0.0) / (WIDTH - 0.0)
+    #normalized to center of screen space
+    normed = (input_position-WIDTH - 0.0) / (WIDTH/2 - 0.0)
     #print(f"normed position: {normed}")
     return normed
 
@@ -61,7 +61,7 @@ def norm_velocity(input_velocity):
 class Network_Pool:
     def __init__(self):
         self.population = []
-        self.rattle_intensity = 0.25
+        self.rattle_intensity = 0.1
         self.generation_number = 0
         self.previous_best_fitness = 0
         self.current_best_fitness = 0
@@ -249,15 +249,17 @@ class Network_Pool:
 
     def set_rattle_intensity_from_tier(self):
         if self.previous_best_fitness < 500:
-            self.rattle_intensity = 0.25
-        if self.previous_best_fitness < 1000 and self.previous_best_fitness >= 500:
-            self.rattle_intensity = 0.2
-        if self.previous_best_fitness < 1500 and self.previous_best_fitness >= 1000:
             self.rattle_intensity = 0.15
-        if self.previous_best_fitness < 2000 and self.previous_best_fitness >= 1500:
+        if self.previous_best_fitness < 1000 and self.previous_best_fitness >= 500:
             self.rattle_intensity = 0.1
-        if self.previous_best_fitness < 2500 and self.previous_best_fitness >= 2000:
+        if self.previous_best_fitness < 1500 and self.previous_best_fitness >= 1000:
+            self.rattle_intensity = 0.08
+        if self.previous_best_fitness < 2000 and self.previous_best_fitness >= 1500:
             self.rattle_intensity = 0.05
+        if self.previous_best_fitness < 2500 and self.previous_best_fitness >= 2000:
+            self.rattle_intensity = 0.03
+        if self.previous_best_fitness < 3000 and self.previous_best_fitness >= 2500:
+            self.rattle_intensity = 0.01
     
 # This object spawns elastic particles with random starting position
 class Collision_Point:
@@ -352,6 +354,7 @@ class NN_Point:
         distance_to_left = self.x
         distance_to_bottom = self.y
         # [self.x,self.y,distance_to_boundary,distance_from_center]
+        #return [distance_from_center,distance_to_top,distance_to_right,distance_to_left,distance_to_bottom]
         return [norm_distance_from_center(distance_from_center),
                 norm_distance(distance_to_top),
                 norm_distance(distance_to_right),
@@ -376,6 +379,7 @@ class NN_Point:
 
 def game_function(i,pool):
     # iterate through population and run simulation
+    """
     if i == len(pool.population)-1:
         print(f'iteration {i} start')
         pygame.init()
@@ -408,11 +412,14 @@ def game_function(i,pool):
                 point.draw(screen)
 
                 # Creating vision matrix list that contains distance, position, and velocity information
+                nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+                
                 nn_point.vision.append([norm_distance(distance),
                                         norm_position(point.x),
                                         norm_position(point.y),
                                         norm_velocity(point.vx),
                                         norm_velocity(point.vy)])
+                
                 if distance < 2 * RADIUS:
                     #print(f"Blue point collided with red point at ({point.x}, {point.y})")
                     nn_point.alive = False
@@ -438,8 +445,8 @@ def game_function(i,pool):
             clock.tick(60)
 
         pygame.quit()
-
-    else:
+        """
+    if True:
         print(f'iteration {i} start')
         # create collision points
         collision_points = [Collision_Point() for _ in range(N_POINTS)]
@@ -461,11 +468,14 @@ def game_function(i,pool):
                 point.update()
 
                 # Creating vision matrix list that contains distance, position, and velocity information
+                #nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+                
                 nn_point.vision.append([norm_distance(distance),
                                         norm_position(point.x),
                                         norm_position(point.y),
                                         norm_velocity(point.vx),
                                         norm_velocity(point.vy)])
+                
                 if distance < 2 * RADIUS:
                     #print(f"Blue point collided with red point at ({point.x}, {point.y})")
                     nn_point.alive = False
