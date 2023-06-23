@@ -27,7 +27,7 @@ POPULATION_SIZE = 100
 # based on how close those points are
 VISUAL_FIELD = 4
 BUILD_SHAPE = (5,5)
-WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodge_AI\\Weights"
+WEIGHTS_PATH = ""
 
 # Normalization functions
 # of the form:  (x - min) / (max - min)
