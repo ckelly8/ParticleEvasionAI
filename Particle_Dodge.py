@@ -27,7 +27,8 @@ POPULATION_SIZE = 100
 # based on how close those points are
 VISUAL_FIELD = 4
 BUILD_SHAPE = (5,5)
-WEIGHTS_PATH = ""
+BASE_RATTLE_INTENSITY = 0.1
+WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodge_AI\\Weights"
 
 # Normalization functions
 # of the form:  (x - min) / (max - min)
@@ -67,6 +68,7 @@ class Network_Pool:
         self.current_best_fitness = 0
         self.current_second_best_fitness = 0
         self.previous_best_weights = False
+        self.generation_nonimprovement_tracker = 0
 
         self.check_evolution_progress()
         self.find_best_previous_weights()
@@ -93,6 +95,7 @@ class Network_Pool:
             
             self.rattle_intensity = float(params_dict['rattle_intensity'])
             self.generation_number = int(params_dict['generation_number'])
+            self.generation_nonimprovement_tracker = int(params_dict['generation_nonimprovement_tracker'])
         
         else:
             print('No evolution history present. Starting evolution process.')
@@ -102,6 +105,7 @@ class Network_Pool:
         with open('Parameters.txt','w') as params:
             params.writelines(f"rattle_intensity,{self.rattle_intensity}\n")
             params.writelines(f"generation_number,{self.generation_number}\n")
+            params.writelines(f"generation_nonimprovement_tracker,{self.generation_nonimprovement_tracker}\n")
 
 
     # fix for resetting population as bug occurs when carrying initial population 
@@ -169,11 +173,19 @@ class Network_Pool:
         # check if both current and second best fitness are greater than previous gen best
         # decrease rattle intensity to promote convergence then perform standard
         # crossover and mutation with best performers 
-        print(f"Current Best: {self.current_best_fitness}, Current Second Best: {self.current_second_best_fitness}, Previous Best: {self.previous_best_fitness}, Rattle Intensity: {self.rattle_intensity}")
+        print(f"Current Best: {self.current_best_fitness}, Current Second Best: {self.current_second_best_fitness}, Previous Best: {self.previous_best_fitness}, Previous Rattle Intensity : {self.rattle_intensity}")
+        print(f"Number of iterations without improvement: {self.generation_nonimprovement_tracker}")
         if self.current_best_fitness > self.previous_best_fitness and self.current_second_best_fitness > self.previous_best_fitness:
             print('Evolution Case 1')
+
+            # only reduce intensity if convergence is occuring
+            if self.generation_nonimprovement_tracker > 0:
+                self.rattle_intensity = BASE_RATTLE_INTENSITY
+            elif self.generation_nonimprovement_tracker == 0 and self.generation_number != 0:
+                self.rattle_intensity = self.rattle_intensity * 0.90
+            
+            self.generation_nonimprovement_tracker = 0 
             self.save_best()
-            #self.rattle_intensity = self.rattle_intensity * 0.9
             self.population[0].brain = self.crossover(self.population[0].brain,self.population[1].brain)
             self.mutate_population(self.rattle(self.population[0].brain,POPULATION_SIZE))
 
@@ -181,8 +193,15 @@ class Network_Pool:
         # in this case crossover with best and previous generation best
         if self.current_best_fitness > self.previous_best_fitness and self.current_second_best_fitness < self.previous_best_fitness:
             print('Evolution Case 2')
+
+            # only reduce intensity if convergence is occuring
+            if self.generation_nonimprovement_tracker > 0:
+                self.rattle_intensity = BASE_RATTLE_INTENSITY
+            elif self.generation_nonimprovement_tracker == 0 and self.generation_number != 0:
+                self.rattle_intensity = self.rattle_intensity * 0.95
+
+            self.generation_nonimprovement_tracker = 0
             self.save_best()
-            #self.rattle_intensity = self.rattle_intensity * 0.95
             self.population[1].brain.load_weights(self.previous_best_weights)
             self.population[0].brain = self.crossover(self.population[0].brain,self.population[1].brain)
             self.mutate_population(self.rattle(self.population[0].brain,POPULATION_SIZE))
@@ -192,10 +211,21 @@ class Network_Pool:
         # from previous generation
         if self.current_best_fitness <= self.previous_best_fitness:
             print('Evolution Case 3')
-            #self.rattle_intensity = self.rattle_intensity * 1.001
-            self.load_previous_best_weights()
-            self.mutate_population(self.rattle(self.population[0].brain,POPULATION_SIZE))
 
+            # track number of generations that have not improved from previous
+            self.generation_nonimprovement_tracker += 1
+
+            # if generation nonimprovement reaches threshold, then 
+            # increase genetic variability through rattle intensity
+            if self.generation_nonimprovement_tracker >= 2:
+                self.rattle_intensity = self.rattle_intensity * 1.1
+            
+            self.population[1].brain.load_weights(self.previous_best_weights)
+            self.population[0].brain = self.crossover(self.population[0].brain,self.population[1].brain)
+            self.mutate_population(self.rattle(self.population[0].brain,POPULATION_SIZE))
+            self.load_previous_best_weights()
+
+        print(f"Current Rattle Intensity: {self.rattle_intensity}")
         self.record_evolution_progress()
 
     def crossover(self, network1, network2):
@@ -246,20 +276,6 @@ class Network_Pool:
     def mutate_population(self, mutated_brains):
         for i in range(len(mutated_brains)):
             self.population[i].brain = mutated_brains[i]
-
-    def set_rattle_intensity_from_tier(self):
-        if self.previous_best_fitness < 500:
-            self.rattle_intensity = 0.15
-        if self.previous_best_fitness < 1000 and self.previous_best_fitness >= 500:
-            self.rattle_intensity = 0.1
-        if self.previous_best_fitness < 1500 and self.previous_best_fitness >= 1000:
-            self.rattle_intensity = 0.08
-        if self.previous_best_fitness < 2000 and self.previous_best_fitness >= 1500:
-            self.rattle_intensity = 0.05
-        if self.previous_best_fitness < 2500 and self.previous_best_fitness >= 2000:
-            self.rattle_intensity = 0.03
-        if self.previous_best_fitness < 3000 and self.previous_best_fitness >= 2500:
-            self.rattle_intensity = 0.01
     
 # This object spawns elastic particles with random starting position
 class Collision_Point:
@@ -379,118 +395,51 @@ class NN_Point:
 
 def game_function(i,pool):
     # iterate through population and run simulation
-    """
-    if i == len(pool.population)-1:
-        print(f'iteration {i} start')
-        pygame.init()
-        screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        clock = pygame.time.Clock() 
-        # create collision points
-        collision_points = [Collision_Point() for _ in range(N_POINTS)]
-        # create neural network point
-        nn_point = pool.population[i]
-        # game loop
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-            screen.fill((0, 0, 0))
 
-            # Calculate elapsed time
-            #elapsed_time = pygame.time.get_ticks() - start_time
-            #seconds = elapsed_time // 1000
-            nn_point.fitness += 1
-            vision = []
+    print(f'Network {i} start')
+    # create collision points
+    collision_points = [Collision_Point() for _ in range(N_POINTS)]
+    # create neural network point
+    nn_point = pool.population[i]
+    # game loop
+    running = True
 
-            # update and draw blue points
-            for point in collision_points:
-                #time.sleep(0.01)
-                distance = np.hypot(point.x - nn_point.x, point.y - nn_point.y)
-                bisect.insort(vision,[distance,point], key = lambda x: x[0])
-                point.update()
-                point.draw(screen)
+    while running:
+        # Calculate elapsed time
+        #elapsed_time = pygame.time.get_ticks() - start_time
+        #seconds = elapsed_time // 1000
+        nn_point.fitness += 1
 
-                # Creating vision matrix list that contains distance, position, and velocity information
-                nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
-                
-                nn_point.vision.append([norm_distance(distance),
-                                        norm_position(point.x),
-                                        norm_position(point.y),
-                                        norm_velocity(point.vx),
-                                        norm_velocity(point.vy)])
-                
-                if distance < 2 * RADIUS:
-                    #print(f"Blue point collided with red point at ({point.x}, {point.y})")
-                    nn_point.alive = False
+        # update and draw blue points
 
-            # sort the vision matrix to closest first
-            nn_point.vision = sorted(nn_point.vision, key = lambda x: x[0])
-            for i in range(len(vision)):
-                if i < 4:
-                    vision[i][1].color = (255,255,0)
-                elif i >= 4:
-                    vision[i][1].color = (0,0,255)
+        for point in collision_points:
+            #time.sleep(0.01)
+            distance = np.hypot(point.x - nn_point.x, point.y - nn_point.y)
+            point.update()
 
-            # check if point has gone out of bounds or collided with 
-            # any other points and terminate iteration if true
-            if nn_point.alive == False:
-                #print('dead point')
-                running = False
+            # Creating vision matrix list that contains distance, position, and velocity information
+            #nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+            nn_point.vision.append([norm_distance(distance),
+                                    norm_position(point.x),
+                                    norm_position(point.y),
+                                    norm_velocity(point.vx),
+                                    norm_velocity(point.vy)])
+            
+            if distance < 2 * RADIUS:
+                #print(f"Blue point collided with red point at ({point.x}, {point.y})")
+                nn_point.alive = False
 
-            nn_point.look()
-            nn_point.update()
-            nn_point.draw(screen)
-            pygame.display.flip()
-            clock.tick(60)
+        # sort the vision matrix to closest first
+        nn_point.vision = sorted(nn_point.vision, key = lambda x: x[0])
 
-        pygame.quit()
-        """
-    if True:
-        print(f'iteration {i} start')
-        # create collision points
-        collision_points = [Collision_Point() for _ in range(N_POINTS)]
-        # create neural network point
-        nn_point = pool.population[i]
-        # game loop
-        running = True
-        while running:
+        # check if point has gone out of bounds or collided with 
+        # any other points and terminate iteration if true
+        if nn_point.alive == False:
+            #print('dead point')
+            running = False
 
-            # Calculate elapsed time
-            #elapsed_time = pygame.time.get_ticks() - start_time
-            #seconds = elapsed_time // 1000
-            nn_point.fitness += 1
-
-            # update and draw blue points
-            for point in collision_points:
-                #time.sleep(0.01)
-                distance = np.hypot(point.x - nn_point.x, point.y - nn_point.y)
-                point.update()
-
-                # Creating vision matrix list that contains distance, position, and velocity information
-                #nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
-                
-                nn_point.vision.append([norm_distance(distance),
-                                        norm_position(point.x),
-                                        norm_position(point.y),
-                                        norm_velocity(point.vx),
-                                        norm_velocity(point.vy)])
-                
-                if distance < 2 * RADIUS:
-                    #print(f"Blue point collided with red point at ({point.x}, {point.y})")
-                    nn_point.alive = False
-
-            # sort the vision matrix to closest first
-            nn_point.vision = sorted(nn_point.vision, key = lambda x: x[0])
-
-            # check if point has gone out of bounds or collided with 
-            # any other points and terminate iteration if true
-            if nn_point.alive == False:
-                #print('dead point')
-                running = False
-
-            nn_point.look()
-            nn_point.update()
+        nn_point.look()
+        nn_point.update()
 
 def main():
 
@@ -512,7 +461,6 @@ def main():
         print('pop end')
         pool.evolve()
         pool.reset_population()
-        pool.set_rattle_intensity_from_tier()
 
 if __name__ == "__main__":
     main()
