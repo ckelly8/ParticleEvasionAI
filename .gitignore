@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Batch files used for quick testing
+*.bat
+
 # C extensions
 *.so
 
