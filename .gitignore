@@ -9,6 +9,10 @@ __pycache__/
 # C extensions
 *.so
 
+# User Folders
+.vs/
+Archive/
+
 # Distribution / packaging
 .Python
 build/

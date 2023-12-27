@@ -8,6 +8,7 @@ import bisect
 import math
 import threading
 import time
+import sys
 
 # dimensions of the window
 WIDTH, HEIGHT = 600, 600
@@ -444,6 +445,72 @@ def game_function(i,pool):
         nn_point.look()
         nn_point.update()
 
+
+def visualize_best_network():
+    
+    tf.config.run_functions_eagerly(True)
+
+    while True:
+        
+        pygame.init()
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        clock = pygame.time.Clock() 
+        # create collision points
+        collision_points = [Collision_Point() for _ in range(N_POINTS)]
+        # create neural network point
+        nn_point = NN_Point()
+        # game loop
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+            screen.fill((0, 0, 0))
+            # Calculate elapsed time
+            #elapsed_time = pygame.time.get_ticks() - start_time
+            #seconds = elapsed_time // 1000
+            nn_point.fitness += 1
+            vision = []
+            # update and draw blue points
+            for point in collision_points:
+                #time.sleep(0.01)
+                distance = np.hypot(point.x - nn_point.x, point.y - nn_point.y)
+                bisect.insort(vision,[distance,point], key = lambda x: x[0])
+                point.update()
+                point.draw(screen)
+
+                # Creating vision matrix list that contains distance, position, and velocity information
+                #nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+                
+                nn_point.vision.append([norm_distance(distance),
+                                        norm_position(point.x),
+                                        norm_position(point.y),
+                                        (point.vx),
+                                        (point.vy)])
+                
+                if distance < 2 * RADIUS:
+                    #print(f"Blue point collided with red point at ({point.x}, {point.y})")
+                    nn_point.alive = False
+            # sort the vision matrix to closest first
+            nn_point.vision = sorted(nn_point.vision, key = lambda x: x[0])
+            for i in range(len(vision)):
+                if i < 4:
+                    vision[i][1].color = (255,255,0)
+                elif i >= 4:
+                    vision[i][1].color = (0,0,255)
+            # check if point has gone out of bounds or collided with 
+            # any other points and terminate iteration if true
+            if nn_point.alive == False:
+                #print('dead point')
+                running = False
+            nn_point.look()
+            nn_point.update()
+            nn_point.draw(screen)
+            pygame.display.flip()
+            clock.tick(60)
+        pygame.quit()
+
+
 def main():
 
     pool = Network_Pool()
@@ -466,4 +533,10 @@ def main():
         pool.reset_population()
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'visualize':
+            visualize_best_network()
+        else:
+            print("Unknown command")
+    else:
+        main()

@@ -1,3 +1,3 @@
-rattle_intensity,0.0099
-generation_number,1
-generation_nonimprovement_tracker,0
+rattle_intensity,0.010090360841261251
+generation_number,15
+generation_nonimprovement_tracker,10
