@@ -25,8 +25,8 @@ POPULATION_SIZE = 30
 # How many points the NN_Point can 'see' at a time
 # based on how close those points are
 VISUAL_FIELD = 4
-BUILD_SHAPE = (5,5)
-WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodge_AI\\Weights"
+BUILD_SHAPE = (1,5,5)
+WEIGHTS_PATH = os.path.join(os.getcwd(),'Weights')
 
 # Normalization functions
 # of the form:  (x - min) / (max - min)
@@ -113,7 +113,7 @@ class NN_Point:
         self.color = NN_POINT_COLOR
         self.fitness = 0
         self.brain = Neural_Network.NeuralNetwork()
-        self.brain.build((BUILD_SHAPE))
+        self.brain.build(BUILD_SHAPE)
         self.load_best_weights()
         self.alive = True
         self.vision = []
@@ -157,7 +157,7 @@ class NN_Point:
         distance_to_left = self.x
         distance_to_bottom = self.y
         # [self.x,self.y,distance_to_boundary,distance_from_center]
-        return [distance_from_center,distance_to_top,distance_to_right,distance_to_left,distance_to_bottom]
+        #return [distance_from_center,distance_to_top,distance_to_right,distance_to_left,distance_to_bottom]
         return [norm_distance_from_center(distance_from_center),
                 norm_distance(distance_to_top),
                 norm_distance(distance_to_right),
@@ -172,6 +172,7 @@ class NN_Point:
         self.vision.append(position)
         self.vision = np.array(self.vision)
         self.vision = tf.convert_to_tensor(self.vision)
+        self.vision = tf.expand_dims(self.vision, axis=0)
 
     def reset_position(self):
         self.x = WIDTH/2
@@ -214,14 +215,14 @@ def main():
                 point.draw(screen)
 
                 # Creating vision matrix list that contains distance, position, and velocity information
-                nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
-                """
+                #nn_point.vision.append([distance,point.x,point.y,point.vx,point.vy])
+                
                 nn_point.vision.append([norm_distance(distance),
                                         norm_position(point.x),
                                         norm_position(point.y),
-                                        norm_velocity(point.vx),
-                                        norm_velocity(point.vy)])
-                """
+                                        (point.vx),
+                                        (point.vy)])
+                
                 if distance < 2 * RADIUS:
                     #print(f"Blue point collided with red point at ({point.x}, {point.y})")
                     nn_point.alive = False

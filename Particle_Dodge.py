@@ -7,6 +7,7 @@ import os
 import bisect
 import math
 import threading
+import time
 
 # dimensions of the window
 WIDTH, HEIGHT = 600, 600
@@ -26,9 +27,9 @@ POPULATION_SIZE = 100
 # How many points the NN_Point can 'see' at a time
 # based on how close those points are
 VISUAL_FIELD = 4
-BUILD_SHAPE = (5,5)
-BASE_RATTLE_INTENSITY = 0.1
-WEIGHTS_PATH = "C:\\Users\\ckell\\General\\Programming_Repository\\Partical_Dodge_AI\\Weights"
+BUILD_SHAPE = (1,5,5)
+BASE_RATTLE_INTENSITY = 0.01
+WEIGHTS_PATH = os.path.join(os.getcwd(),'Weights')
 
 # Normalization functions
 # of the form:  (x - min) / (max - min)
@@ -62,7 +63,7 @@ def norm_velocity(input_velocity):
 class Network_Pool:
     def __init__(self):
         self.population = []
-        self.rattle_intensity = 0.1
+        self.rattle_intensity = BASE_RATTLE_INTENSITY
         self.generation_number = 0
         self.previous_best_fitness = 0
         self.current_best_fitness = 0
@@ -182,7 +183,7 @@ class Network_Pool:
             if self.generation_nonimprovement_tracker > 0:
                 self.rattle_intensity = BASE_RATTLE_INTENSITY
             elif self.generation_nonimprovement_tracker == 0 and self.generation_number != 0:
-                self.rattle_intensity = self.rattle_intensity * 0.90
+                self.rattle_intensity = self.rattle_intensity * 0.99
             
             self.generation_nonimprovement_tracker = 0 
             self.save_best()
@@ -198,7 +199,7 @@ class Network_Pool:
             if self.generation_nonimprovement_tracker > 0:
                 self.rattle_intensity = BASE_RATTLE_INTENSITY
             elif self.generation_nonimprovement_tracker == 0 and self.generation_number != 0:
-                self.rattle_intensity = self.rattle_intensity * 0.95
+                self.rattle_intensity = self.rattle_intensity * 0.999
 
             self.generation_nonimprovement_tracker = 0
             self.save_best()
@@ -218,8 +219,8 @@ class Network_Pool:
             # if generation nonimprovement reaches threshold, then 
             # increase genetic variability through rattle intensity
             if self.generation_nonimprovement_tracker >= 2:
-                self.rattle_intensity = self.rattle_intensity * 1.1
-            
+                self.rattle_intensity = self.rattle_intensity * 1.001
+
             self.population[1].brain.load_weights(self.previous_best_weights)
             self.population[0].brain = self.crossover(self.population[0].brain,self.population[1].brain)
             self.mutate_population(self.rattle(self.population[0].brain,POPULATION_SIZE))
@@ -385,6 +386,7 @@ class NN_Point:
         self.vision.append(position)
         self.vision = np.array(self.vision)
         self.vision = tf.convert_to_tensor(self.vision)
+        self.vision = tf.expand_dims(self.vision, axis=0)
 
     def reset_position(self):
         self.x = WIDTH/2
@@ -422,8 +424,8 @@ def game_function(i,pool):
             nn_point.vision.append([norm_distance(distance),
                                     norm_position(point.x),
                                     norm_position(point.y),
-                                    norm_velocity(point.vx),
-                                    norm_velocity(point.vy)])
+                                    (point.vx),
+                                    (point.vy)])
             
             if distance < 2 * RADIUS:
                 #print(f"Blue point collided with red point at ({point.x}, {point.y})")
@@ -435,6 +437,7 @@ def game_function(i,pool):
         # check if point has gone out of bounds or collided with 
         # any other points and terminate iteration if true
         if nn_point.alive == False:
+            print(f'Network {i} end')
             #print('dead point')
             running = False
 
