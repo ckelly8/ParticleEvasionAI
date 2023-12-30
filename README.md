@@ -19,7 +19,7 @@ If changing the neural network architecture, make sure to delete the weights con
 In it's current implementation, convergence is approached very slowly. This could be easily modified by changing the rattle mutation values, however, since the approach taken here is very random it would be easy to miss any form of convergence by using large mutation values.
 
 ### Program Visualization
-To visualize this program, simply run the program as you would any python program with the additional command line argument 'visualize' as shown below:
+To visualize this program, run the program as you would any python program with the additional command line argument 'visualize' as shown below:
 'Python.exe Particle_Dodge.py visualize'
 
 Note that visualization does not display a historic simulation but is instead a method to simulate the best performing neural network in real time. These simulations will continue infinitely.
